@@ -201,6 +201,14 @@ canvas {
   box-shadow: 0 0 46px color-mix(in srgb, var(--accent) 55%, transparent);
 }
 
+.kept {
+  margin: 18px 0 0;
+  color: var(--accent-2);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
 .splash ul {
   display: flex;
   flex-wrap: wrap;
@@ -302,6 +310,13 @@ canvas {
   font-size: 18px;
   font-weight: 500;
   letter-spacing: 0.08em;
+}
+
+.readout .best { color: var(--muted); }
+
+.readout .best.is-fresh {
+  color: var(--accent-2);
+  animation: blink 0.35s steps(2, end) 2;
 }
 
 .dock,
@@ -502,6 +517,7 @@ input:focus-visible,
   .eyebrow i,
   .live i,
   .vignette,
+  .readout .best.is-fresh,
   .app[data-feral='true'] .brand strong {
     animation: none;
   }

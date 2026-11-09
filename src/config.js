@@ -13,6 +13,7 @@ export const PALETTES = [
   { name: 'VOID', colors: ['#7c5cff', '#5ce1ff', '#ff4fd8', '#f4efe6'] },
   { name: 'TOXIC', colors: ['#39ff14', '#d6ff3f', '#14f1ff', '#f4efe6'] },
   { name: 'EMBER', colors: ['#ff5c33', '#ffe14a', '#ff2d55', '#fff4d6'] },
+  { name: 'ICE', colors: ['#8af7ff', '#d7e6ff', '#ff4fd8', '#f4efe6'] },
 ]
 
 export const WORDS = ['MAYHEM', 'CHAOS', 'FERAL', 'VOID', 'BLOOM', 'GHOST']
