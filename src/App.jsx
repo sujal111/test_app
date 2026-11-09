@@ -2,6 +2,25 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import Stage from './Stage.jsx'
 import { MODES, PALETTES, PATTERN, clamp, realityName } from './config.js'
 
+const BEST_KEY = 'mayhem.best'
+
+function loadBest() {
+  try {
+    const value = Number(window.localStorage.getItem(BEST_KEY))
+    return Number.isFinite(value) && value > 1 ? Math.floor(value) : 0
+  } catch {
+    return 0
+  }
+}
+
+function saveBest(value) {
+  try {
+    window.localStorage.setItem(BEST_KEY, String(value))
+  } catch {
+    // Storage can be blocked. The record still updates for this session.
+  }
+}
+
 export default function App() {
   const stageRef = useRef(null)
   const [live, setLive] = useState(false)
@@ -17,7 +36,15 @@ export default function App() {
     word: 'MAYHEM',
     kick: 0,
   })
-  const [best, setBest] = useState(0)
+  const [best, setBest] = useState(loadBest)
+  const [acked, setAcked] = useState(best)
+  const [recordFlash, setRecordFlash] = useState(false)
+
+  if (stats.combo > best) setBest(stats.combo)
+  if (best > acked) {
+    setAcked(best)
+    if (best > 1) setRecordFlash(true)
+  }
 
   const palette = PALETTES[paletteIndex]
   const modeInfo = MODES.find((item) => item.id === mode) ?? MODES[0]
@@ -45,8 +72,17 @@ export default function App() {
 
   useEffect(() => {
     document.title = stats.combo > 1 ? `×${stats.combo} MAYHEM` : 'MAYHEM'
-    setBest((current) => Math.max(current, stats.combo))
   }, [stats.combo])
+
+  useEffect(() => {
+    if (best > 1) saveBest(best)
+  }, [best])
+
+  useEffect(() => {
+    if (!recordFlash) return
+    const timer = window.setTimeout(() => setRecordFlash(false), 700)
+    return () => window.clearTimeout(timer)
+  }, [recordFlash])
 
   useEffect(() => {
     const onKey = (event) => {
@@ -144,7 +180,9 @@ export default function App() {
               <span>{PATTERN.bpm} BPM</span>
               <span>{stats.particles} BODIES</span>
               <b>{stats.combo > 0 ? `×${stats.combo}` : 'TAP THE KICK'}</b>
-              {best > 1 ? <span className="best">Best ×{best}</span> : null}
+              {best > 1 ? (
+                <span className={recordFlash ? 'best is-fresh' : 'best'}>Best ×{best}</span>
+              ) : null}
             </div>
           </header>
 
@@ -206,6 +244,7 @@ export default function App() {
           <button type="button" className="ignite" onClick={ignite}>
             Ignite
           </button>
+          {best > 1 ? <p className="kept">Best streak ×{best}</p> : null}
           <ul>
             <li>Click to rupture</li>
             <li>Double-click to swallow</li>
