@@ -17,6 +17,7 @@ export default function App() {
     word: 'MAYHEM',
     kick: 0,
   })
+  const [best, setBest] = useState(0)
 
   const palette = PALETTES[paletteIndex]
   const modeInfo = MODES.find((item) => item.id === mode) ?? MODES[0]
@@ -44,6 +45,7 @@ export default function App() {
 
   useEffect(() => {
     document.title = stats.combo > 1 ? `×${stats.combo} MAYHEM` : 'MAYHEM'
+    setBest((current) => Math.max(current, stats.combo))
   }, [stats.combo])
 
   useEffect(() => {
@@ -66,6 +68,10 @@ export default function App() {
       }
       if (event.key === 'm' || event.key === 'M') {
         setMuted((value) => !value)
+        return
+      }
+      if (event.key === 'r' || event.key === 'R') {
+        setChaos(0.42)
         return
       }
       if (event.key === 'ArrowUp') {
@@ -138,6 +144,7 @@ export default function App() {
               <span>{PATTERN.bpm} BPM</span>
               <span>{stats.particles} BODIES</span>
               <b>{stats.combo > 0 ? `×${stats.combo}` : 'TAP THE KICK'}</b>
+              {best > 1 ? <span className="best">Best ×{best}</span> : null}
             </div>
           </header>
 
@@ -184,7 +191,7 @@ export default function App() {
                 </button>
               </div>
             </div>
-            <p className="keys">1–6 mode · scroll reality · C color · M mute · space drop · right-click repel · double-click black hole</p>
+            <p className="keys">1–6 mode · scroll reality · R settle · C color · M mute · space drop · right-click repel · double-click black hole</p>
           </footer>
         </div>
       ) : (

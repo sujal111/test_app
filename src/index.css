@@ -304,6 +304,8 @@ canvas {
   letter-spacing: 0.08em;
 }
 
+.readout .best { color: var(--muted); }
+
 .dock,
 .ignite,
 button,
