@@ -9,6 +9,7 @@ export default function App() {
   const [chaos, setChaos] = useState(0.42)
   const [paletteIndex, setPaletteIndex] = useState(0)
   const [muted, setMuted] = useState(false)
+  const [frozen, setFrozen] = useState(false)
   const [dropSignal, setDropSignal] = useState(0)
   const [stats, setStats] = useState({
     particles: 0,
@@ -60,6 +61,10 @@ export default function App() {
         setMode(next.id)
         return
       }
+      if (event.key === 'f' || event.key === 'F') {
+        setFrozen((value) => !value)
+        return
+      }
       if (event.key === 'c' || event.key === 'C') {
         setPaletteIndex((index) => (index + 1) % PALETTES.length)
         return
@@ -97,6 +102,7 @@ export default function App() {
         paletteIndex={paletteIndex}
         live={live}
         muted={muted}
+        frozen={frozen}
         dropSignal={dropSignal}
         onStats={setStats}
         onChaosDelta={(delta) => setChaos((value) => clamp(value + delta, 0, 1))}
@@ -179,12 +185,15 @@ export default function App() {
                 <button type="button" className="ghost" aria-pressed={muted} onClick={() => setMuted((value) => !value)}>
                   {muted ? 'SOUND OFF' : 'SOUND ON'}
                 </button>
+                <button type="button" className="ghost" aria-pressed={frozen} onClick={() => setFrozen((value) => !value)}>
+                  {frozen ? 'FROZEN' : 'FREEZE'}
+                </button>
                 <button type="button" className="drop" onClick={drop}>
                   DROP
                 </button>
               </div>
             </div>
-            <p className="keys">1–6 mode · scroll reality · C color · M mute · space drop · right-click repel · double-click black hole</p>
+            <p className="keys">1–6 mode · scroll reality · F freeze · C color · M mute · space drop · right-click repel · double-click black hole</p>
           </footer>
         </div>
       ) : (
@@ -203,6 +212,7 @@ export default function App() {
             <li>Click to rupture</li>
             <li>Double-click to swallow</li>
             <li>Space to drop</li>
+            <li>F to freeze the field</li>
           </ul>
         </div>
       )}
