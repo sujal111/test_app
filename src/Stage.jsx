@@ -56,6 +56,7 @@ export default function Stage({
   paletteIndex,
   live,
   muted,
+  frozen,
   dropSignal,
   onStats,
   onChaosDelta,
@@ -67,6 +68,7 @@ export default function Stage({
     paletteIndex,
     live,
     muted,
+    frozen,
     dropSignal,
   })
   const onStatsRef = useRef(onStats)
@@ -79,6 +81,7 @@ export default function Stage({
     api.current.paletteIndex = paletteIndex
     api.current.live = live
     api.current.muted = muted
+    api.current.frozen = frozen
     api.current.dropSignal = dropSignal
     onStatsRef.current = onStats
     onChaosRef.current = onChaosDelta
@@ -117,6 +120,7 @@ export default function Stage({
     let wasLive = false
     let appliedDrop = 0
     let mutedApplied = null
+    let frozenApplied = false
     let last = performance.now()
     let raf = 0
     let dead = false
@@ -522,10 +526,12 @@ export default function Stage({
 
     function frame(now) {
       if (dead) return
-      const dt = Math.min(2, (now - last) / 16.6667)
+      const elapsed = now - last
+      const dt = Math.min(2, elapsed / 16.6667)
       last = now
       const started = performance.now()
       const state = api.current
+      const motion = state.frozen ? 0 : dt
       const modeId = state.mode
       const chaosNow = Math.min(1, state.chaos + chaosBoost)
       const palette = PALETTES[state.paletteIndex % PALETTES.length].colors
@@ -547,6 +553,12 @@ export default function Stage({
         if (appliedDrop > 0 && state.live) triggerDrop()
       }
 
+      if (state.frozen !== frozenApplied) {
+        frozenApplied = state.frozen
+        if (state.live) pushToast(state.frozen ? 'FREEZE' : 'THAW')
+      }
+      if (state.frozen && blackhole) blackhole.until += elapsed
+
       const events = rig.tick()
       for (let i = 0; i < events.length; i++) {
         const ev = events[i]
@@ -556,7 +568,7 @@ export default function Stage({
           kickFlash = 1
           lastKickAt = ev.time
           kickCount += 1
-          if (state.live && !reduce && pointer.touched) {
+          if (state.live && !state.frozen && !reduce && pointer.touched) {
             spark(pointer.x, pointer.y, 14 + Math.floor(chaosNow * 18), 5 + chaosNow * 4)
             makeWave(pointer.x, pointer.y, 10, 0)
             if (modeId === 'glyph') scatter(chaosNow * 7)
@@ -565,11 +577,11 @@ export default function Stage({
         if (ev.snare) {
           kickFlash = Math.max(kickFlash, 0.55)
           paletteShift = (paletteShift + 1) % palette.length
-          if (state.live) makeWave(w * 0.5, h * 0.46, 20, 1)
+          if (state.live && !state.frozen) makeWave(w * 0.5, h * 0.46, 20, 1)
         } else if (ev.hat) {
           kickFlash = Math.max(kickFlash, 0.16)
         }
-        if (modeId === 'glyph' && state.live && stepCounter % 64 === 0) {
+        if (!state.frozen && modeId === 'glyph' && state.live && stepCounter % 64 === 0) {
           wordIndex = (wordIndex + 1) % WORDS.length
           glyphKey = ''
           scatter(16)
@@ -582,7 +594,7 @@ export default function Stage({
       ensurePopulation()
       refreshGlyphs()
 
-      for (let i = 0; i < parts.length; i++) stepBody(parts[i], i, dt, modeId, chaosNow, now)
+      for (let i = 0; i < parts.length; i++) stepBody(parts[i], i, motion, modeId, chaosNow, now)
 
       for (let i = sparks.length - 1; i >= 0; i--) {
         const s = sparks[i]
@@ -590,18 +602,18 @@ export default function Stage({
           const dx = blackhole.x - s.x
           const dy = blackhole.y - s.y
           const dist = Math.hypot(dx, dy) || 1
-          s.vx += (dx / dist) * 1.3 * dt
-          s.vy += (dy / dist) * 1.3 * dt
+          s.vx += (dx / dist) * 1.3 * motion
+          s.vy += (dy / dist) * 1.3 * motion
         }
-        s.x += s.vx * dt
-        s.y += s.vy * dt
-        s.vx *= keep(0.985, dt)
-        s.vy *= keep(0.985, dt)
-        s.life -= s.decay * dt
+        s.x += s.vx * motion
+        s.y += s.vy * motion
+        s.vx *= keep(0.985, motion)
+        s.vy *= keep(0.985, motion)
+        s.life -= s.decay * motion
         if (s.life <= 0) sparks.splice(i, 1)
       }
 
-      chaosBoost *= keep(0.992, dt)
+      chaosBoost *= keep(0.992, motion)
       if (chaosBoost < 0.01) chaosBoost = 0
       kickFlash *= keep(0.86, dt)
       shake *= keep(0.86, dt)
@@ -686,8 +698,8 @@ export default function Stage({
 
       for (let i = shockwaves.length - 1; i >= 0; i--) {
         const sw = shockwaves[i]
-        sw.r += sw.vr * dt
-        sw.life -= 0.034 * dt
+        sw.r += sw.vr * motion
+        sw.life -= 0.034 * motion
         if (sw.life <= 0) {
           shockwaves.splice(i, 1)
           continue
@@ -776,7 +788,7 @@ export default function Stage({
         ctx.restore()
       }
 
-      if (!reduce && chaosNow > 0.78 && Math.random() < 0.1) {
+      if (!state.frozen && !reduce && chaosNow > 0.78 && Math.random() < 0.1) {
         const y = Math.floor(Math.random() * canvas.height)
         const sliceH = Math.max(1, Math.floor((2 + Math.random() * 12) * dpr))
         if (y + sliceH < canvas.height) {
