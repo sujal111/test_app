@@ -184,7 +184,7 @@ export default function App() {
                 </button>
               </div>
             </div>
-            <p className="keys">1–6 mode · scroll reality · C color · M mute · space drop · right-click repel · double-click black hole</p>
+            <p className="keys">1–6 mode · scroll reality · C color · M mute · T ghost · space drop · right-click repel · double-click black hole</p>
           </footer>
         </div>
       ) : (
@@ -203,6 +203,7 @@ export default function App() {
             <li>Click to rupture</li>
             <li>Double-click to swallow</li>
             <li>Space to drop</li>
+            <li>T for ghost trails</li>
           </ul>
         </div>
       )}

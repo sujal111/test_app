@@ -132,6 +132,7 @@ export default function Stage({
     let shake = 0
     let flash = 0
     let allowLinks = true
+    let ghost = false
     let reported = { step: -1, combo: -1, kick: -1, word: '', particles: -1 }
 
     function capFor() {
@@ -356,6 +357,16 @@ export default function Stage({
 
     function onContext(event) {
       event.preventDefault()
+    }
+
+    function onKey(event) {
+      if (event.repeat) return
+      if (event.key !== 't' && event.key !== 'T') return
+      const el = document.activeElement
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) return
+      if (reduce) return
+      ghost = !ghost
+      if (api.current.live) pushToast(ghost ? 'GHOST' : 'SOLID')
     }
 
     function stepBody(p, index, dt, modeId, chaosNow, now) {
@@ -609,13 +620,15 @@ export default function Stage({
 
       const fade = reduce
         ? 0.62
-        : modeId === 'glyph'
-          ? 0.4
-          : modeId === 'flow'
-            ? 0.18
-            : modeId === 'nova'
-              ? 0.24
-              : 0.28
+        : ghost
+          ? 0.07
+          : modeId === 'glyph'
+            ? 0.4
+            : modeId === 'flow'
+              ? 0.18
+              : modeId === 'nova'
+                ? 0.24
+                : 0.28
 
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
       ctx.globalCompositeOperation = 'source-over'
@@ -800,6 +813,7 @@ export default function Stage({
       if (!dead) glyphKey = ''
     })
 
+    window.addEventListener('keydown', onKey)
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
     window.addEventListener('pointercancel', onUp)
@@ -815,6 +829,7 @@ export default function Stage({
       dead = true
       cancelAnimationFrame(raf)
       observer.disconnect()
+      window.removeEventListener('keydown', onKey)
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
       window.removeEventListener('pointercancel', onUp)
