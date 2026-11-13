@@ -56,6 +56,8 @@ export default function Stage({
   paletteIndex,
   live,
   muted,
+  hue,
+  hueName,
   dropSignal,
   onStats,
   onChaosDelta,
@@ -67,6 +69,8 @@ export default function Stage({
     paletteIndex,
     live,
     muted,
+    hue,
+    hueName,
     dropSignal,
   })
   const onStatsRef = useRef(onStats)
@@ -79,6 +83,8 @@ export default function Stage({
     api.current.paletteIndex = paletteIndex
     api.current.live = live
     api.current.muted = muted
+    api.current.hue = hue
+    api.current.hueName = hueName
     api.current.dropSignal = dropSignal
     onStatsRef.current = onStats
     onChaosRef.current = onChaosDelta
@@ -117,6 +123,7 @@ export default function Stage({
     let wasLive = false
     let appliedDrop = 0
     let mutedApplied = null
+    let hueApplied = 0
     let last = performance.now()
     let raf = 0
     let dead = false
@@ -547,6 +554,12 @@ export default function Stage({
         if (appliedDrop > 0 && state.live) triggerDrop()
       }
 
+      if (state.hue !== hueApplied) {
+        hueApplied = state.hue
+        canvas.style.filter = state.hue ? `hue-rotate(${state.hue}deg)` : ''
+        if (state.live) pushToast(state.hueName)
+      }
+
       const events = rig.tick()
       for (let i = 0; i < events.length; i++) {
         const ev = events[i]
@@ -822,6 +835,7 @@ export default function Stage({
       canvas.removeEventListener('dblclick', onDouble)
       canvas.removeEventListener('wheel', onWheel)
       canvas.removeEventListener('contextmenu', onContext)
+      canvas.style.filter = ''
       rig.close()
       rigRef.current = null
     }
