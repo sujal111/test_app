@@ -2,6 +2,14 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import Stage from './Stage.jsx'
 import { MODES, PALETTES, PATTERN, clamp, realityName } from './config.js'
 
+const HUES = [
+  { name: 'TRUE', deg: 0 },
+  { name: 'ACID', deg: 55 },
+  { name: 'DUSK', deg: 150 },
+  { name: 'GOLD', deg: 200 },
+  { name: 'OCEAN', deg: 280 },
+]
+
 export default function App() {
   const stageRef = useRef(null)
   const [live, setLive] = useState(false)
@@ -9,6 +17,7 @@ export default function App() {
   const [chaos, setChaos] = useState(0.42)
   const [paletteIndex, setPaletteIndex] = useState(0)
   const [muted, setMuted] = useState(false)
+  const [hueIndex, setHueIndex] = useState(0)
   const [dropSignal, setDropSignal] = useState(0)
   const [stats, setStats] = useState({
     particles: 0,
@@ -19,6 +28,7 @@ export default function App() {
   })
 
   const palette = PALETTES[paletteIndex]
+  const hue = HUES[hueIndex]
   const modeInfo = MODES.find((item) => item.id === mode) ?? MODES[0]
 
   const arm = useCallback(() => {
@@ -33,6 +43,10 @@ export default function App() {
 
   const drop = useCallback(() => {
     setDropSignal((value) => value + 1)
+  }, [])
+
+  const cycleHue = useCallback(() => {
+    setHueIndex((index) => (index + 1) % HUES.length)
   }, [])
 
   useEffect(() => {
@@ -64,6 +78,10 @@ export default function App() {
         setPaletteIndex((index) => (index + 1) % PALETTES.length)
         return
       }
+      if (event.key === 'h' || event.key === 'H') {
+        cycleHue()
+        return
+      }
       if (event.key === 'm' || event.key === 'M') {
         setMuted((value) => !value)
         return
@@ -86,7 +104,7 @@ export default function App() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [arm, drop, ignite, live])
+  }, [arm, cycleHue, drop, ignite, live])
 
   return (
     <div className={live ? 'app is-live' : 'app'} data-feral={chaos >= 0.9}>
@@ -97,6 +115,8 @@ export default function App() {
         paletteIndex={paletteIndex}
         live={live}
         muted={muted}
+        hue={hue.deg}
+        hueName={hue.name}
         dropSignal={dropSignal}
         onStats={setStats}
         onChaosDelta={(delta) => setChaos((value) => clamp(value + delta, 0, 1))}
@@ -176,6 +196,9 @@ export default function App() {
                 <button type="button" className="ghost" onClick={() => setPaletteIndex((index) => (index + 1) % PALETTES.length)}>
                   {palette.name}
                 </button>
+                <button type="button" className="ghost" onClick={cycleHue}>
+                  {hue.name}
+                </button>
                 <button type="button" className="ghost" aria-pressed={muted} onClick={() => setMuted((value) => !value)}>
                   {muted ? 'SOUND OFF' : 'SOUND ON'}
                 </button>
@@ -184,7 +207,7 @@ export default function App() {
                 </button>
               </div>
             </div>
-            <p className="keys">1–6 mode · scroll reality · C color · M mute · space drop · right-click repel · double-click black hole</p>
+            <p className="keys">1–6 mode · scroll reality · C color · H hue · M mute · space drop · right-click repel · double-click black hole</p>
           </footer>
         </div>
       ) : (
@@ -203,6 +226,7 @@ export default function App() {
             <li>Click to rupture</li>
             <li>Double-click to swallow</li>
             <li>Space to drop</li>
+            <li>H to shift hue</li>
           </ul>
         </div>
       )}
