@@ -56,6 +56,7 @@ export default function Stage({
   paletteIndex,
   live,
   muted,
+  pinned,
   dropSignal,
   onStats,
   onChaosDelta,
@@ -67,6 +68,7 @@ export default function Stage({
     paletteIndex,
     live,
     muted,
+    pinned,
     dropSignal,
   })
   const onStatsRef = useRef(onStats)
@@ -79,6 +81,7 @@ export default function Stage({
     api.current.paletteIndex = paletteIndex
     api.current.live = live
     api.current.muted = muted
+    api.current.pinned = pinned
     api.current.dropSignal = dropSignal
     onStatsRef.current = onStats
     onChaosRef.current = onChaosDelta
@@ -102,6 +105,9 @@ export default function Stage({
 
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     const pointer = { x: 0, y: 0, ui: false, touched: false, repulse: false }
+    const pin = { x: 0, y: 0 }
+    let pinApplied = false
+    let attract = pointer
     const parts = []
     const sparks = []
     const shockwaves = []
@@ -377,8 +383,8 @@ export default function Stage({
         p.vx *= keep(0.72, dt)
         p.vy *= keep(0.72, dt)
       } else if (modeId === 'orbit') {
-        const dx = pointer.x - p.x
-        const dy = pointer.y - p.y
+        const dx = attract.x - p.x
+        const dy = attract.y - p.y
         const dist = Math.hypot(dx, dy) || 1
         const ring = 62 + p.seed * 200
         const radial = (ring - dist) * 0.0048
@@ -390,15 +396,15 @@ export default function Stage({
         const friend = parts[(index * 7 + 13) % parts.length]
         p.vx += (friend.vx - p.vx) * 0.05 * dt
         p.vy += (friend.vy - p.vy) * 0.05 * dt
-        p.vx += (pointer.x - p.x) * 0.0015 * (1 + chaosNow) * dt
-        p.vy += (pointer.y - p.y) * 0.0015 * (1 + chaosNow) * dt
+        p.vx += (attract.x - p.x) * 0.0015 * (1 + chaosNow) * dt
+        p.vy += (attract.y - p.y) * 0.0015 * (1 + chaosNow) * dt
         p.vx += Math.cos(now * 0.002 + p.seed * 14) * 0.14 * dt
         p.vy += Math.sin(now * 0.0017 + p.seed * 14) * 0.14 * dt
         p.vx *= keep(0.96, dt)
         p.vy *= keep(0.96, dt)
       } else if (modeId === 'magnet') {
-        p.vx += (pointer.x - p.x) * (0.0032 + chaosNow * 0.0045) * dt
-        p.vy += (pointer.y - p.y) * (0.0032 + chaosNow * 0.0045) * dt
+        p.vx += (attract.x - p.x) * (0.0032 + chaosNow * 0.0045) * dt
+        p.vy += (attract.y - p.y) * (0.0032 + chaosNow * 0.0045) * dt
         p.vx *= keep(0.84, dt)
         p.vy *= keep(0.84, dt)
       } else if (modeId === 'nova') {
@@ -415,8 +421,8 @@ export default function Stage({
           Math.cos(p.y * 0.0036 - now * 0.00024) * Math.PI
         p.vx += Math.cos(angle) * (0.16 + chaosNow * 0.5) * dt
         p.vy += Math.sin(angle * 1.35) * (0.16 + chaosNow * 0.5) * dt
-        const dx = pointer.x - p.x
-        const dy = pointer.y - p.y
+        const dx = attract.x - p.x
+        const dy = attract.y - p.y
         const dist = Math.hypot(dx, dy) || 1
         p.vx += (dx / dist) * 0.2 * dt
         p.vy += (dy / dist) * 0.2 * dt
@@ -452,8 +458,8 @@ export default function Stage({
         if (p.y < 0) p.y += h
         if (p.y > h) p.y -= h
       } else if (p.x < -90 || p.x > w + 90 || p.y < -90 || p.y > h + 90) {
-        p.x = pointer.x + (Math.random() - 0.5) * 180
-        p.y = pointer.y + (Math.random() - 0.5) * 180
+        p.x = attract.x + (Math.random() - 0.5) * 180
+        p.y = attract.y + (Math.random() - 0.5) * 180
         p.vx *= 0.2
         p.vy *= 0.2
       }
@@ -546,6 +552,18 @@ export default function Stage({
         appliedDrop = state.dropSignal
         if (appliedDrop > 0 && state.live) triggerDrop()
       }
+
+      if (!!state.pinned !== pinApplied) {
+        pinApplied = !!state.pinned
+        if (pinApplied) {
+          pin.x = pointer.x
+          pin.y = pointer.y
+          if (state.live) pushToast('PIN')
+        } else if (state.live) {
+          pushToast('FREE')
+        }
+      }
+      attract = pinApplied ? pin : pointer
 
       const events = rig.tick()
       for (let i = 0; i < events.length; i++) {
@@ -772,6 +790,22 @@ export default function Stage({
           ctx.moveTo(Math.cos(angle) * (radius + 4), Math.sin(angle) * (radius + 4))
           ctx.lineTo(Math.cos(angle) * (radius + 11), Math.sin(angle) * (radius + 11))
         }
+        ctx.stroke()
+        ctx.restore()
+      }
+
+      if (state.live && pinApplied) {
+        ctx.save()
+        ctx.translate(pin.x, pin.y)
+        ctx.strokeStyle = palette[2]
+        ctx.globalAlpha = 0.95
+        ctx.lineWidth = 1.4
+        ctx.beginPath()
+        ctx.arc(0, 0, 7, 0, Math.PI * 2)
+        ctx.moveTo(-16, 0)
+        ctx.lineTo(16, 0)
+        ctx.moveTo(0, -16)
+        ctx.lineTo(0, 16)
         ctx.stroke()
         ctx.restore()
       }
