@@ -56,6 +56,7 @@ export default function Stage({
   paletteIndex,
   live,
   muted,
+  mirrored,
   dropSignal,
   onStats,
   onChaosDelta,
@@ -67,6 +68,7 @@ export default function Stage({
     paletteIndex,
     live,
     muted,
+    mirrored,
     dropSignal,
   })
   const onStatsRef = useRef(onStats)
@@ -79,6 +81,7 @@ export default function Stage({
     api.current.paletteIndex = paletteIndex
     api.current.live = live
     api.current.muted = muted
+    api.current.mirrored = mirrored
     api.current.dropSignal = dropSignal
     onStatsRef.current = onStats
     onChaosRef.current = onChaosDelta
@@ -117,6 +120,7 @@ export default function Stage({
     let wasLive = false
     let appliedDrop = 0
     let mutedApplied = null
+    let mirrorApplied = false
     let last = performance.now()
     let raf = 0
     let dead = false
@@ -547,6 +551,12 @@ export default function Stage({
         if (appliedDrop > 0 && state.live) triggerDrop()
       }
 
+      if (!!state.mirrored !== mirrorApplied) {
+        mirrorApplied = !!state.mirrored
+        if (state.live) pushToast(mirrorApplied ? 'MIRROR' : 'SOLO')
+      }
+      const twin = mirrorApplied
+
       const events = rig.tick()
       for (let i = 0; i < events.length; i++) {
         const ev = events[i]
@@ -645,7 +655,16 @@ export default function Stage({
       if (allowLinks && modeId !== 'glyph' && !reduce) {
         ctx.globalAlpha = 0.22
         ctx.lineWidth = 1
-        drawLinks(parts, modeId === 'nova' ? 52 : 74, palette[1])
+        const reach = modeId === 'nova' ? 52 : 74
+        drawLinks(parts, reach, palette[1])
+        if (twin) {
+          ctx.save()
+          ctx.translate(w, 0)
+          ctx.scale(-1, 1)
+          ctx.globalAlpha = 0.22
+          drawLinks(parts, reach, palette[1])
+          ctx.restore()
+        }
       }
 
       for (let i = 0; i < parts.length; i++) {
@@ -655,23 +674,28 @@ export default function Stage({
           modeId === 'glyph'
             ? palette[(i + paletteShift) % 2]
             : palette[(p.ci + paletteShift) % palette.length]
-        if (modeId !== 'glyph' && chaosNow > 0.4) {
-          ctx.globalAlpha = 0.25
-          ctx.fillStyle = palette[(p.ci + paletteShift + 1) % palette.length]
-          ctx.fillRect(p.x + 2 + chaosNow * 2, p.y, size, size)
-        }
-        ctx.globalAlpha = modeId === 'glyph' ? 0.95 : 0.78
-        ctx.fillStyle = col
-        if (p.seed > 0.88 && modeId !== 'glyph') {
-          ctx.save()
-          ctx.translate(p.x, p.y)
-          ctx.rotate(p.seed * 6 + now * 0.001)
-          ctx.fillRect(-size, -size, size * 2, size * 2)
-          ctx.restore()
-        } else {
-          ctx.beginPath()
-          ctx.arc(p.x, p.y, size, 0, Math.PI * 2)
-          ctx.fill()
+        const spots = twin ? [p.x, w - p.x] : [p.x]
+        for (let spot = 0; spot < spots.length; spot++) {
+          if (spot === 1 && spots[1] === spots[0]) break
+          const x = spots[spot]
+          if (modeId !== 'glyph' && chaosNow > 0.4) {
+            ctx.globalAlpha = 0.25
+            ctx.fillStyle = palette[(p.ci + paletteShift + 1) % palette.length]
+            ctx.fillRect(x + 2 + chaosNow * 2, p.y, size, size)
+          }
+          ctx.globalAlpha = modeId === 'glyph' ? 0.95 : 0.78
+          ctx.fillStyle = col
+          if (p.seed > 0.88 && modeId !== 'glyph') {
+            ctx.save()
+            ctx.translate(x, p.y)
+            ctx.rotate(p.seed * 6 + now * 0.001)
+            ctx.fillRect(-size, -size, size * 2, size * 2)
+            ctx.restore()
+          } else {
+            ctx.beginPath()
+            ctx.arc(x, p.y, size, 0, Math.PI * 2)
+            ctx.fill()
+          }
         }
       }
 
@@ -679,9 +703,13 @@ export default function Stage({
         const s = sparks[i]
         ctx.globalAlpha = Math.max(0, s.life)
         ctx.fillStyle = palette[(s.ci + paletteShift) % palette.length]
-        ctx.beginPath()
-        ctx.arc(s.x, s.y, s.size * s.life, 0, Math.PI * 2)
-        ctx.fill()
+        const sparkSpots = twin ? [s.x, w - s.x] : [s.x]
+        for (let spot = 0; spot < sparkSpots.length; spot++) {
+          if (spot === 1 && sparkSpots[1] === sparkSpots[0]) break
+          ctx.beginPath()
+          ctx.arc(sparkSpots[spot], s.y, s.size * s.life, 0, Math.PI * 2)
+          ctx.fill()
+        }
       }
 
       for (let i = shockwaves.length - 1; i >= 0; i--) {
@@ -695,31 +723,40 @@ export default function Stage({
         ctx.globalAlpha = Math.max(0, sw.life) * 0.85
         ctx.strokeStyle = palette[sw.ci % palette.length]
         ctx.lineWidth = 1.4
-        ctx.beginPath()
-        ctx.arc(sw.x, sw.y, sw.r, 0, Math.PI * 2)
-        ctx.stroke()
+        const waveSpots = twin ? [sw.x, w - sw.x] : [sw.x]
+        for (let spot = 0; spot < waveSpots.length; spot++) {
+          if (spot === 1 && waveSpots[1] === waveSpots[0]) break
+          ctx.beginPath()
+          ctx.arc(waveSpots[spot], sw.y, sw.r, 0, Math.PI * 2)
+          ctx.stroke()
+        }
       }
 
       if (blackhole) {
         const age = 1 - Math.max(0, blackhole.until - now) / blackhole.dur
         const radius = 14 + age * 30
-        ctx.globalCompositeOperation = 'source-over'
-        ctx.globalAlpha = 1
-        ctx.fillStyle = '#020108'
-        ctx.beginPath()
-        ctx.arc(blackhole.x, blackhole.y, radius, 0, Math.PI * 2)
-        ctx.fill()
-        ctx.globalCompositeOperation = 'lighter'
-        ctx.lineWidth = 1.6
-        ctx.globalAlpha = 0.9
-        ctx.strokeStyle = palette[0]
-        ctx.beginPath()
-        ctx.arc(blackhole.x, blackhole.y, radius + 7, now * 0.004, now * 0.004 + 4.2)
-        ctx.stroke()
-        ctx.strokeStyle = palette[1]
-        ctx.beginPath()
-        ctx.arc(blackhole.x, blackhole.y, radius + 14, -now * 0.005, -now * 0.005 + 3.4)
-        ctx.stroke()
+        const holeSpots = twin ? [blackhole.x, w - blackhole.x] : [blackhole.x]
+        for (let spot = 0; spot < holeSpots.length; spot++) {
+          if (spot === 1 && holeSpots[1] === holeSpots[0]) break
+          const x = holeSpots[spot]
+          ctx.globalCompositeOperation = 'source-over'
+          ctx.globalAlpha = 1
+          ctx.fillStyle = '#020108'
+          ctx.beginPath()
+          ctx.arc(x, blackhole.y, radius, 0, Math.PI * 2)
+          ctx.fill()
+          ctx.globalCompositeOperation = 'lighter'
+          ctx.lineWidth = 1.6
+          ctx.globalAlpha = 0.9
+          ctx.strokeStyle = palette[0]
+          ctx.beginPath()
+          ctx.arc(x, blackhole.y, radius + 7, now * 0.004, now * 0.004 + 4.2)
+          ctx.stroke()
+          ctx.strokeStyle = palette[1]
+          ctx.beginPath()
+          ctx.arc(x, blackhole.y, radius + 14, -now * 0.005, -now * 0.005 + 3.4)
+          ctx.stroke()
+        }
       }
 
       ctx.restore()
